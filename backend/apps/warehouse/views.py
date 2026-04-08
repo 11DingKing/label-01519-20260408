@@ -425,6 +425,29 @@ class WarningReadView(APIView):
         return success_response(message='已标记为已读')
 
 
+class WarningManualCheckView(APIView):
+    """手动触发库存预警检查"""
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        try:
+            from apps.reports.cron import check_stock_warning
+            
+            logger.info(f"用户 {request.user.username} 手动触发库存预警检查")
+            
+            result = check_stock_warning()
+            
+            logger.info(f"手动库存预警检查完成: 新增 {result['new_warnings_count']} 条预警")
+            
+            return success_response(
+                data=result,
+                message=f'库存预警检查完成，共发现 {result["total_warning_goods"]} 个预警货物，新增 {result["new_warnings_count"]} 条预警记录'
+            )
+        except Exception as e:
+            logger.error(f"手动触发库存预警检查失败: {str(e)}")
+            return error_response(message=f'检查失败: {str(e)}')
+
+
 # ==================== 审批管理 ====================
 class ApprovalListView(APIView):
     """审批列表 - 使用 django-filter"""

@@ -13,6 +13,7 @@ def check_stock_warning():
     """
     检查库存预警 - 定时任务
     每天凌晨1点执行，检查库存低于预警阈值的货物
+    返回: dict - 包含检查结果的字典
     """
     logger.info("开始执行库存预警检查定时任务...")
     
@@ -23,6 +24,9 @@ def check_stock_warning():
     )
     
     created_count = 0
+    created_warnings = []
+    existing_warnings = []
+    
     for goods in warning_goods:
         # 检查是否已有未读的预警记录
         existing_warning = Warning.objects.filter(
@@ -32,15 +36,41 @@ def check_stock_warning():
         ).exists()
         
         if not existing_warning:
-            Warning.objects.create(
+            warning = Warning.objects.create(
                 goods=goods,
                 type='low_stock',
                 message=f'货物 {goods.name}（{goods.code}）库存不足，当前库存: {goods.quantity}，预警阈值: {goods.warning_threshold}'
             )
             created_count += 1
+            created_warnings.append({
+                'id': warning.id,
+                'goods_id': goods.id,
+                'goods_name': goods.name,
+                'goods_code': goods.code,
+                'current_quantity': float(goods.quantity),
+                'warning_threshold': float(goods.warning_threshold),
+                'message': warning.message,
+                'created_at': warning.created_at.isoformat()
+            })
             logger.info(f"创建库存预警: {goods.name}")
+        else:
+            existing_warnings.append({
+                'goods_id': goods.id,
+                'goods_name': goods.name,
+                'goods_code': goods.code,
+                'current_quantity': float(goods.quantity),
+                'warning_threshold': float(goods.warning_threshold)
+            })
     
     logger.info(f"库存预警检查完成，新增预警记录: {created_count} 条")
+    
+    return {
+        'total_warning_goods': warning_goods.count(),
+        'new_warnings_count': created_count,
+        'existing_warnings_count': len(existing_warnings),
+        'new_warnings': created_warnings,
+        'existing_warnings': existing_warnings
+    }
 
 
 def generate_daily_report():

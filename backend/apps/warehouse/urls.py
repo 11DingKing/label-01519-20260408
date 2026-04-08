@@ -9,7 +9,7 @@ from .views import (
     GoodsListCreateView, GoodsDetailView,
     StockInListCreateView,
     StockOutListCreateView,
-    WarningListView, WarningReadView,
+    WarningListView, WarningReadView, WarningManualCheckView,
     ApprovalListView, ApprovalActionView,
     ImportExportView
 )
@@ -40,6 +40,7 @@ urlpatterns = [
     # 预警管理
     path('warnings/', WarningListView.as_view(), name='warning-list'),
     path('warnings/<int:pk>/read/', WarningReadView.as_view(), name='warning-read'),
+    path('warnings/manual-check/', WarningManualCheckView.as_view(), name='warning-manual-check'),
     
     # 审批管理
     path('approvals/', ApprovalListView.as_view(), name='approval-list'),

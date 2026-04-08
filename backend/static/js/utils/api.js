@@ -230,6 +230,10 @@ const API = {
         return this.put(`/warnings/${id}/read/`);
     },
     
+    manualCheckWarning() {
+        return this.post('/warnings/manual-check/');
+    },
+    
     // ==================== 审批管理 ====================
     
     getApprovals(params = {}) {

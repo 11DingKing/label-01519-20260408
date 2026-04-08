@@ -5,20 +5,502 @@
 {% block page_title %}预警{% endblock %}
 
 {% block content %}
-<div class="developing-container">
-    <div class="developing-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-            <path d="M12 9v4M12 17h.01"/>
-        </svg>
+<div class="warning-page">
+    <div class="page-toolbar">
+        <div class="toolbar-left">
+            <h3 class="page-subtitle">库存预警管理</h3>
+        </div>
+        <div class="toolbar-right">
+            <button id="manualCheckBtn" class="btn btn-primary btn-pulse">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 4v6h-6"/>
+                    <path d="M1 20v-6h6"/>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                </svg>
+                手动检查预警
+            </button>
+            <button id="refreshBtn" class="btn btn-secondary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 4v6h-6"/>
+                    <path d="M1 20v-6h6"/>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                </svg>
+                刷新列表
+            </button>
+        </div>
     </div>
-    <h2 class="developing-title">预警</h2>
-    <p class="developing-desc">
-        该功能模块正在开发中<br>
-        敬请期待...
-    </p>
-    <div class="developing-progress">
-        <div class="developing-progress-bar"></div>
+
+    <div id="checkResult" class="check-result" style="display: none;">
+        <div class="result-header">
+            <span class="result-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+            </span>
+            <span class="result-title">检查完成</span>
+        </div>
+        <div class="result-content" id="resultContent"></div>
+    </div>
+
+    <div class="table-container">
+        <div class="table-toolbar">
+            <div class="table-toolbar-left">
+                <div class="filter-group">
+                    <label class="filter-label">状态筛选:</label>
+                    <select id="statusFilter" class="form-select">
+                        <option value="">全部</option>
+                        <option value="false">未读</option>
+                        <option value="true">已读</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">类型筛选:</label>
+                    <select id="typeFilter" class="form-select">
+                        <option value="">全部</option>
+                        <option value="low_stock">库存不足</option>
+                        <option value="expiring">即将过期</option>
+                        <option value="expired">已过期</option>
+                    </select>
+                </div>
+            </div>
+            <div class="table-toolbar-right">
+                <span id="warningStats" class="stats-text"></span>
+            </div>
+        </div>
+
+        <div class="table-loading" id="tableLoading" style="display: none;">
+            <div class="loading-spinner"></div>
+        </div>
+
+        <table class="data-table" id="warningTable">
+            <thead>
+                <tr>
+                    <th>预警类型</th>
+                    <th>货物名称</th>
+                    <th>货物编码</th>
+                    <th>当前库存</th>
+                    <th>预警阈值</th>
+                    <th>预警信息</th>
+                    <th>状态</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="warningTableBody">
+            </tbody>
+        </table>
+
+        <div class="table-empty" id="tableEmpty" style="display: none;">
+            <div class="table-empty-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                    <path d="M12 9v4M12 17h.01"/>
+                </svg>
+            </div>
+            <p class="table-empty-text">暂无预警记录</p>
+        </div>
     </div>
 </div>
+
+<style>
+.warning-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+.page-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-lg);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-card);
+}
+
+.toolbar-left .page-subtitle {
+    font-size: var(--text-base);
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.toolbar-right {
+    display: flex;
+    gap: var(--spacing-md);
+}
+
+.check-result {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(34, 211, 238, 0.05) 100%);
+    border: 1px solid var(--accent-color);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    box-shadow: 0 0 20px rgba(34, 211, 238, 0.1);
+}
+
+.result-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.result-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-gradient);
+    border-radius: var(--radius-lg);
+    color: var(--text-primary);
+}
+
+.result-icon svg {
+    width: 24px;
+    height: 24px;
+}
+
+.result-title {
+    font-size: var(--text-lg);
+    font-weight: var(--font-semibold);
+    color: var(--text-primary);
+}
+
+.result-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-md);
+}
+
+.result-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+}
+
+.result-item-label {
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.result-item-value {
+    font-size: var(--text-xl);
+    font-weight: var(--font-bold);
+    color: var(--accent-color);
+}
+
+.result-item-value.warning {
+    color: var(--warning-color);
+}
+
+.result-item-value.success {
+    color: var(--success-color);
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.filter-label {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+}
+
+.form-select {
+    height: 36px;
+    padding: 0 var(--spacing-md);
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: var(--text-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.form-select:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.1);
+}
+
+.stats-text {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+}
+
+.stats-text strong {
+    color: var(--accent-color);
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border-color);
+    border-top-color: var(--accent-color);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.new-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    background: linear-gradient(135deg, var(--error-color) 0%, var(--error-light) 100%);
+    color: var(--text-primary);
+    font-size: var(--text-xs);
+    font-weight: var(--font-semibold);
+    border-radius: var(--radius-full);
+    margin-left: var(--spacing-xs);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const manualCheckBtn = document.getElementById('manualCheckBtn');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const statusFilter = document.getElementById('statusFilter');
+    const typeFilter = document.getElementById('typeFilter');
+    const checkResult = document.getElementById('checkResult');
+    const resultContent = document.getElementById('resultContent');
+    const tableBody = document.getElementById('warningTableBody');
+    const tableEmpty = document.getElementById('tableEmpty');
+    const tableLoading = document.getElementById('tableLoading');
+    const warningStats = document.getElementById('warningStats');
+
+    let currentFilters = {
+        is_read: '',
+        type: ''
+    };
+
+    function showLoading(show) {
+        tableLoading.style.display = show ? 'flex' : 'none';
+        tableLoading.style.justifyContent = 'center';
+        tableLoading.style.alignItems = 'center';
+        tableLoading.style.minHeight = '200px';
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr) return '-';
+        const date = new Date(dateStr);
+        return date.toLocaleString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    function getTypeDisplay(type) {
+        const typeMap = {
+            'low_stock': '库存不足',
+            'expiring': '即将过期',
+            'expired': '已过期'
+        };
+        return typeMap[type] || type;
+    }
+
+    function getTypeClass(type) {
+        const classMap = {
+            'low_stock': 'status-warning',
+            'expiring': 'status-info',
+            'expired': 'status-error'
+        };
+        return classMap[type] || 'status-info';
+    }
+
+    async function loadWarnings() {
+        showLoading(true);
+        tableEmpty.style.display = 'none';
+
+        try {
+            const params = {};
+            if (currentFilters.is_read !== '') {
+                params.is_read = currentFilters.is_read;
+            }
+            if (currentFilters.type !== '') {
+                params.type = currentFilters.type;
+            }
+
+            const data = await API.getWarnings(params);
+            
+            if (data && data.code === 0 && data.data) {
+                renderWarnings(data.data);
+            } else {
+                renderWarnings([]);
+            }
+        } catch (error) {
+            console.error('加载预警列表失败:', error);
+            Toast.error('加载预警列表失败');
+            renderWarnings([]);
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    function renderWarnings(warnings) {
+        tableBody.innerHTML = '';
+
+        if (!warnings || warnings.length === 0) {
+            tableEmpty.style.display = 'block';
+            warningStats.innerHTML = '共 <strong>0</strong> 条预警记录';
+            return;
+        }
+
+        tableEmpty.style.display = 'none';
+        const unreadCount = warnings.filter(w => !w.is_read).length;
+        warningStats.innerHTML = `共 <strong>${warnings.length}</strong> 条预警记录，其中 <strong class="text-warning">${unreadCount}</strong> 条未读`;
+
+        warnings.forEach(warning => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>
+                    <span class="table-status ${getTypeClass(warning.type)}">
+                        ${getTypeDisplay(warning.type)}
+                    </span>
+                </td>
+                <td>
+                    <div class="flex items-center gap-2">
+                        <span>${warning.goods_name || '-'}</span>
+                        ${!warning.is_read ? '<span class="new-badge">新</span>' : ''}
+                    </div>
+                </td>
+                <td>${warning.goods_code || '-'}</td>
+                <td>
+                    <span class="${warning.current_quantity <= 0 ? 'text-error' : 'text-warning'}">
+                        ${warning.current_quantity !== undefined ? warning.current_quantity : '-'}
+                    </span>
+                </td>
+                <td>${warning.goods?.warning_threshold || '-'}</td>
+                <td style="max-width: 300px;">
+                    <div class="text-sm text-secondary" style="white-space: normal; word-break: break-all;">
+                        ${warning.message || '-'}
+                    </div>
+                </td>
+                <td>
+                    <span class="table-status ${warning.is_read ? 'status-success' : 'status-warning'}">
+                        ${warning.is_read ? '已读' : '未读'}
+                    </span>
+                </td>
+                <td>${formatDate(warning.created_at)}</td>
+                <td>
+                    <div class="table-actions">
+                        ${!warning.is_read ? `
+                            <button class="table-action-btn mark-read-btn" data-id="${warning.id}" title="标记已读">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                    <polyline points="22 4 12 14.01 9 11.01"/>
+                                </svg>
+                            </button>
+                        ` : ''}
+                    </div>
+                </td>
+            `;
+            tableBody.appendChild(tr);
+        });
+
+        document.querySelectorAll('.mark-read-btn').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                const id = this.dataset.id;
+                try {
+                    const data = await API.markWarningRead(id);
+                    if (data && data.code === 0) {
+                        Toast.success('已标记为已读');
+                        loadWarnings();
+                    } else {
+                        Toast.error(data?.message || '操作失败');
+                    }
+                } catch (error) {
+                    console.error('标记已读失败:', error);
+                    Toast.error('操作失败');
+                }
+            });
+        });
+    }
+
+    async function handleManualCheck() {
+        manualCheckBtn.disabled = true;
+        manualCheckBtn.classList.add('loading');
+
+        try {
+            const data = await API.manualCheckWarning();
+            
+            if (data && data.code === 0) {
+                const result = data.data;
+                
+                resultContent.innerHTML = `
+                    <div class="result-item">
+                        <div class="result-item-label">预警货物总数</div>
+                        <div class="result-item-value ${result.total_warning_goods > 0 ? 'warning' : 'success'}">
+                            ${result.total_warning_goods} 个
+                        </div>
+                    </div>
+                    <div class="result-item">
+                        <div class="result-item-label">新增预警记录</div>
+                        <div class="result-item-value ${result.new_warnings_count > 0 ? 'warning' : 'success'}">
+                            ${result.new_warnings_count} 条
+                        </div>
+                    </div>
+                    <div class="result-item">
+                        <div class="result-item-label">已有未读预警</div>
+                        <div class="result-item-value ${result.existing_warnings_count > 0 ? 'warning' : 'success'}">
+                            ${result.existing_warnings_count} 条
+                        </div>
+                    </div>
+                `;
+
+                checkResult.style.display = 'block';
+                Toast.success(data.message || '检查完成');
+                
+                loadWarnings();
+
+                setTimeout(() => {
+                    checkResult.style.display = 'none';
+                }, 5000);
+            } else {
+                Toast.error(data?.message || '检查失败');
+            }
+        } catch (error) {
+            console.error('手动检查失败:', error);
+            Toast.error('检查失败，请稍后重试');
+        } finally {
+            manualCheckBtn.disabled = false;
+            manualCheckBtn.classList.remove('loading');
+        }
+    }
+
+    manualCheckBtn.addEventListener('click', handleManualCheck);
+    refreshBtn.addEventListener('click', loadWarnings);
+
+    statusFilter.addEventListener('change', function() {
+        currentFilters.is_read = this.value;
+        loadWarnings();
+    });
+
+    typeFilter.addEventListener('change', function() {
+        currentFilters.type = this.value;
+        loadWarnings();
+    });
+
+    loadWarnings();
+});
+</script>
 {% endblock %}
